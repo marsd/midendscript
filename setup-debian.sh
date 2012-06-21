@@ -123,6 +123,14 @@ function install_dash {
 	ln -s dash /bin/sh
 }
 
+function install_make {
+	check_install make make
+}
+
+function install_gplusplus {
+	check_install g++ g++
+}
+
 function install_exim4 {
 	check_install mail exim4
 	if [ -f /etc/exim4/update-exim4.conf.conf ]
@@ -692,7 +700,8 @@ system)
 	install_iotop
 	install_iftop
 	install_syslogd
-    check_install make g++
+	install_make
+	install_gplusplus
 	;;
 site)
 	install_site $2 $3
