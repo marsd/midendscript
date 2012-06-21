@@ -5,31 +5,24 @@ Modified script to run optimally on 1-2GB RAM VPS
 - Removed dropbear
 - Added secure to create a new ssh user, change ssh port and disable ssh root logins
 - Moved install_iptables into secure
-- Base software list: 
-- make 
-- g++
-- iptables (firewall)
-- dash (replaces bash)
-- syslogd
-- exim4 (light mail server)
-- vim, nano, mc, htop, iftop & iotop (more to come...)
+- Base software list: make g++ iptables dash syslogd exim4 vim nano mc htop iftop iotop
 - MySQL (v5.1+ W/O Innodb, configured for mid-end VPS with query caching)
-- PHP-FPM (v5.3+ with APC installed and configured) Some included packages:
-- php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear    
-- PECL packages: rar zip
-- PECL extensions are added as additional inis in /etc/php/conf.d
-- Now uses sockets within each site's folder
+- PHP-FPM (v5.3+ with APC installed and configured) 
+Other packages installed:
+ php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear    
+ PECL packages: rar zip
+ PECL extensions are added as additional inis in /etc/php/conf.d
 - Install Site 
-- Creates a <DOMAIN>.conf in /etc/php5/fpm/pool.d/
-- Creates a <DOMAIN>.conf in /etc/nginx/sites-available/
-- Attempts to fix image file script execution exploits
-- Attempts to rewrite /index.php? params (currently for FuelPHP, can be modified for other frameworks)		
-- Creates the following directories and files:
-- /var/www/<DOMAIN>/
-- /var/www/<DOMAIN>/public_html
-- index.php (MySQL database, username and password are in comments)
-- pinfo.php (phpinfo)
-- /var/www/<DOMAIN>/logs
+Creates a DOMAIN.conf in /etc/php5/fpm/pool.d/
+Creates a DOMAIN.conf in /etc/nginx/sites-available/
+Attempts to fix image file script execution exploits
+Attempts to rewrite /index.php? params (currently for FuelPHP, can be modified for other frameworks)		
+Creates the following directories and files:
+/var/www/DOMAIN/
+/var/www/DOMAIN/public_html
+index.php (MySQL database, username and password are in comments)
+pinfo.php (phpinfo)
+/var/www/DOMAIN/logs
 	
 	
 ## Usage:
