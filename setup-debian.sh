@@ -1,72 +1,72 @@
 #!/bin/bash
 
 function check_install {
-    if [ -z "`which "$1" 2>/dev/null`" ]
-    then
-        executable=$1
-        shift
-        while [ -n "$1" ]
-        do
-            DEBIAN_FRONTEND=noninteractive apt-get -q -y --force-yes install "$1"
-            print_info "$1 installed for $executable"
-            shift
-        done
-    else
-        print_warn "$2 already installed"
-    fi
+	if [ -z "`which "$1" 2>/dev/null`" ]
+	then
+		executable=$1
+		shift
+		while [ -n "$1" ]
+		do
+			DEBIAN_FRONTEND=noninteractive apt-get -q -y --force-yes install "$1"
+			print_info "$1 installed for $executable"
+			shift
+		done
+	else
+		print_warn "$2 already installed"
+	fi
 }
 
 function check_remove {
-    if [ -n "`which "$1" 2>/dev/null`" ]
-    then
-        DEBIAN_FRONTEND=noninteractive apt-get -q -y --force-yes remove --purge "$2"
-        print_info "$2 removed"
-    else
-        print_warn "$2 is not installed"
-    fi
+	if [ -n "`which "$1" 2>/dev/null`" ]
+	then
+		DEBIAN_FRONTEND=noninteractive apt-get -q -y --force-yes remove --purge "$2"
+		print_info "$2 removed"
+	else
+		print_warn "$2 is not installed"
+	fi
 }
 
 function check_sanity {
-    # Do some sanity checking.
-    if [ $(/usr/bin/id -u) != "0" ]
-    then
-        die 'Must be run by root user'
-    fi
+	# Do some sanity checking.
+	if [ $(/usr/bin/id -u) != "0" ]
+	then
+		die 'Must be run by root user'
+	fi
 
-    if [ ! -f /etc/debian_version ]
-    then
-        die "Distribution is not supported"
-    fi
+	if [ ! -f /etc/debian_version ]
+	then
+		die "Distribution is not supported"
+	fi
 }
 
 function die {
-    echo "ERROR: $1" > /dev/null 1>&2
-    exit 1
+	echo "ERROR: $1" > /dev/null 1>&2
+	exit 1
 }
 
 function get_domain_name() {
-    # Getting rid of the lowest part.
-    domain=${1%.*}
-    lowest=`expr "$domain" : '.*\.\([a-z][a-z]*\)'`
-    case "$lowest" in
+	# Getting rid of the lowest part.
+	domain=${1%.*}
+	lowest=`expr "$domain" : '.*\.\([a-z][a-z]*\)'`
+	case "$lowest" in
 	com|net|org|gov|edu|co|me|info|name)
-        domain=${domain%.*}
-        ;;
-    esac
-    lowest=`expr "$domain" : '.*\.\([a-z][a-z]*\)'`
-    [ -z "$lowest" ] && echo "$domain" || echo "$lowest"
+		domain=${domain%.*}
+		;;
+	esac
+	lowest=`expr "$domain" : '.*\.\([a-z][a-z]*\)'`
+	[ -z "$lowest" ] && echo "$domain" || echo "$lowest"
 }
 
 function get_password() {
-    # Check whether our local salt is present.
-    SALT=/var/lib/random_salt
-    if [ ! -f "$SALT" ]
-    then
-        head -c 512 /dev/urandom > "$SALT"
-        chmod 400 "$SALT"
-    fi
-    password=`(cat "$SALT"; echo $1) | md5sum | base64`
-    echo ${password:0:13}
+	# Check whether our local salt is present.
+	SALT=/var/lib/random_salt
+	if [ ! -f "$SALT" ]
+	then
+		head -c 512 /dev/urandom > "$SALT"
+		chmod 400 "$SALT"
+	fi
+	password=`(cat "$SALT"; echo $1) | md5sum | base64`
+	echo ${password:0:13}
 }
 
 function print_info {
@@ -118,20 +118,20 @@ function install_vim {
 }
 
 function install_dash {
-    check_install dash dash
-    rm -f /bin/sh
-    ln -s dash /bin/sh
+	check_install dash dash
+	rm -f /bin/sh
+	ln -s dash /bin/sh
 }
 
 function install_exim4 {
-    check_install mail exim4
-    if [ -f /etc/exim4/update-exim4.conf.conf ]
-    then
-        sed -i \
-            "s/dc_eximconfig_configtype='local'/dc_eximconfig_configtype='internet'/" \
-            /etc/exim4/update-exim4.conf.conf
-        invoke-rc.d exim4 restart
-    fi
+	check_install mail exim4
+	if [ -f /etc/exim4/update-exim4.conf.conf ]
+	then
+		sed -i \
+			"s/dc_eximconfig_configtype='local'/dc_eximconfig_configtype='internet'/" \
+			/etc/exim4/update-exim4.conf.conf
+		invoke-rc.d exim4 restart
+	fi
 }
 
 function install_dotdeb {
@@ -185,103 +185,103 @@ END
 }
 
 function install_mysql {
-    # Install the MySQL packages
-    check_install mysqld mysql-server
-    check_install mysql mysql-client
+	# Install the MySQL packages
+	check_install mysqld mysql-server
+	check_install mysql mysql-client
 
-    # Install a mid-end copy of the my.cnf to disable InnoDB, and then delete
-    # all the related files.
-    invoke-rc.d mysql stop
-    rm -f /var/lib/mysql/ib*
-    cat > /etc/mysql/conf.d/midendbox.cnf <<END
+	# Install a mid-end copy of the my.cnf to disable InnoDB, and then delete
+	# all the related files.
+	invoke-rc.d mysql stop
+	rm -f /var/lib/mysql/ib*
+	cat > /etc/mysql/conf.d/midendbox.cnf <<END
 [mysqld]
 default-storage-engine = MyISAM
 key_buffer = 32M
 query_cache_size = 128M
 skip-innodb
 END
-    invoke-rc.d mysql start
+	invoke-rc.d mysql start
 
-    # Generating a new password for the root user.
-    passwd=`get_password root@mysql`
-    mysqladmin password "$passwd"
-    cat > ~/.my.cnf <<END
+	# Generating a new password for the root user.
+	passwd=`get_password root@mysql`
+	mysqladmin password "$passwd"
+	cat > ~/.my.cnf <<END
 [client]
 user = root
 password = $passwd
 END
-    chmod 600 ~/.my.cnf
+	chmod 600 ~/.my.cnf
 }
 
 function install_nginx {
 	cpu=`cat /proc/cpuinfo | grep processor | wc -l`
 	
-    check_install nginx nginx
+	check_install nginx nginx
     
     # Need to increase the bucket size for Debian 5.
-    cat > /etc/nginx/conf.d/midendbox.conf <<END
+	cat > /etc/nginx/conf.d/midendbox.conf <<END
 server_names_hash_bucket_size 64;
 END
-    if [ -f /etc/nginx/nginx.conf ]
-    then
-        mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
-    fi
-    cat > /etc/nginx/nginx.conf <<EOF
+	if [ -f /etc/nginx/nginx.conf ]
+	then
+		mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+	fi
+	cat > /etc/nginx/nginx.conf <<EOF
 user www-data;
 worker_processes $cpu;
 pid /var/run/nginx.pid;
 
 events {
-        worker_connections 1024;
-        # multi_accept on;
+	worker_connections 2048;
+	# multi_accept on;
 }
 
 http {
-        ## Basic Settings
-        tcp_nopush on;
-        tcp_nodelay on;
-        types_hash_max_size 2048;
-        client_max_body_size 20M;
-        client_body_buffer_size 128k;
-        
-        include /etc/nginx/mime.types;
+	## Basic Settings
+	tcp_nopush on;
+	tcp_nodelay on;
+	types_hash_max_size 2048;
+	client_max_body_size 20M;
+	client_body_buffer_size 128k;
 
-        access_log /var/log/nginx/access.log;
-        error_log /var/log/nginx/error.log;
+	include /etc/nginx/mime.types;
 
-        ## General Options  
-        charset                 utf-8;
-        default_type            application/octet-stream;
-        ignore_invalid_headers  on;
-        keepalive_timeout       65;
-        keepalive_requests      20;
-        max_ranges              0;
-        #open_file_cache         max=1000 inactive=1h;
-        #open_file_cache_errors  on;
-        #open_file_cache_min_uses 3;
-        #open_file_cache_valid   1m;
-        recursive_error_pages   on;
-        sendfile                on;
-        server_tokens           off;
-        source_charset          utf-8;
+	access_log /var/log/nginx/access.log;
+	error_log /var/log/nginx/error.log;
 
-        ## Log Format
-        log_format  main  '\$remote_addr \$host \$remote_user [\$time_local] "\$request" \$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" \$ssl_cipher \$request_time';
+	## General Options  
+	charset                 utf-8;
+	default_type            application/octet-stream;
+	ignore_invalid_headers  on;
+	keepalive_timeout       65;
+	keepalive_requests      20;
+	max_ranges              0;
+	#open_file_cache         max=1000 inactive=1h;
+	#open_file_cache_errors  on;
+	#open_file_cache_min_uses 3;
+	#open_file_cache_valid   1m;
+	recursive_error_pages   on;
+	sendfile                on;
+	server_tokens           off;
+	source_charset          utf-8;
 
-        ## Compression
-        gzip                 on;
-        gzip_static          on;
-        gzip_vary            on;
-        gzip_disable "msie6";
-        gzip_proxied any;
-        gzip_comp_level 6;
-        gzip_buffers 16 8k;
-        gzip_http_version 1.1;
-        gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+	## Log Format
+	log_format  main  '\$remote_addr \$host \$remote_user [\$time_local] "\$request" \$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" \$ssl_cipher \$request_time';
 
-        ## Virtual Host Configs
-        include /etc/nginx/conf.d/*.conf;
-        include /etc/nginx/sites-enabled/*;
+	## Compression
+	gzip                 on;
+	gzip_static          on;
+	gzip_vary            on;
+	gzip_disable "msie6";
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 16 8k;
+	gzip_http_version 1.1;
+	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+	## Virtual Host Configs
+	include /etc/nginx/conf.d/*.conf;
+	include /etc/nginx/sites-enabled/*;
 }
 
 EOF
@@ -290,21 +290,21 @@ EOF
 }
 
 function install_php {   
-    check_install php5 php5 php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear
-    check_install php5-fpm php5-fpm
+	check_install php5 php5 php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear
+	check_install php5-fpm php5-fpm
 	pecl install rar
 	pecl install zip
 
-    mkdir -p /var/www
-    chown www-data:www-data /var/www
-    mkdir -p /var/lib/www
-    chown www-data:www-data /var/lib/www
-    
-    update-rc.d php5-fpm defaults
+	mkdir -p /var/www
+	chown www-data:www-data /var/www
+	mkdir -p /var/lib/www
+	chown www-data:www-data /var/lib/www
+
+	update-rc.d php5-fpm defaults
 
 	mv /etc/php5/conf.d/apc.ini /etc/php5/conf.d/orig.apc.ini
 
-cat > /etc/php5/conf.d/apc.ini <<END
+	cat > /etc/php5/conf.d/apc.ini <<END
 [APC]
 extension=apc.so
 apc.enabled=1
@@ -326,7 +326,7 @@ END
 
 	mv /etc/php5/conf.d/suhosin.ini /etc/php5/conf.d/orig.suhosin.ini
 
-cat > /etc/php5/conf.d/suhosin.ini <<END
+	cat > /etc/php5/conf.d/suhosin.ini <<END
 ; configuration for php suhosin module
 extension=suhosin.so
 suhosin.executor.include.whitelist="phar"
@@ -339,7 +339,7 @@ suhosin.post.max_totalname_length = 8192
 suhosin.sql.bailout_on_error = Off
 END
 
-cat > /etc/php5/conf.d/rar.ini <<END
+	cat > /etc/php5/conf.d/rar.ini <<END
 ; configuration for php rar module
 extension=rar.so
 END
@@ -363,23 +363,23 @@ END
 }
 
 function install_site {
-    if [ -z "$1" ] || [ -z "$2" ]
-    then
-        die "Usage: `basename $0` site <hostname> <your name>"
-    fi
-    
-    mkdir -p /var/www/$1/{public_html,logs}
-    chown root:root -R "/var/www/$1"
-    
-    cat > "/var/www/$1/public_html/index.php" <<END
+	if [ -z "$1" ] || [ -z "$2" ]
+	then
+		die "Usage: `basename $0` site <hostname> <your name>"
+	fi
+
+	mkdir -p /var/www/$1/{public_html,logs}
+	chown root:root -R "/var/www/$1"
+
+	cat > "/var/www/$1/public_html/index.php" <<END
 <?php
-  /*
-  [MySQL]
-  database: database_name_here
-  username: username_here
-  password: password_here
-  */
-  echo "Hello, $2.";
+/*
+[MySQL]
+database: database_name_here
+username: username_here
+password: password_here
+*/
+echo "Hello, $2.";
 ?>
 END
     cat > "/var/www/$1/public_html/pinfo.php" <<END
@@ -387,23 +387,23 @@ END
   phpinfo();
 ?>    
 END
-    
-    # Setting up the MySQL database
-    dbname=`echo $1 | tr . _`
-    userid=`get_domain_name $1`
-    # MySQL userid cannot be more than 15 characters long
-    userid="${userid:0:15}"
-    passwd=`get_password "$userid@mysql"`
 
-    sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
-        "/var/www/$1/public_html/index.php"
-    mysqladmin create "$dbname"
-    echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
-        mysql
-        
-    # Setting up php5-fpm config
-    # http://www.howtoforge.com/php-fpm-nginx-security-in-shared-hosting-environments-debian-ubuntu
-    cat > "/etc/php5/fpm/pool.d/$1.conf" <<EOF
+	# Setting up the MySQL database
+	dbname=`echo $1 | tr . _`
+	userid=`get_domain_name $1`
+	# MySQL userid cannot be more than 15 characters long
+	userid="${userid:0:15}"
+	passwd=`get_password "$userid@mysql"`
+
+	sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
+		"/var/www/$1/public_html/index.php"
+	mysqladmin create "$dbname"
+	echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
+		mysql
+		
+	# Setting up php5-fpm config
+	# http://www.howtoforge.com/php-fpm-nginx-security-in-shared-hosting-environments-debian-ubuntu
+	cat > "/etc/php5/fpm/pool.d/$1.conf" <<EOF
 [$1]
 
 listen = /var/www/$1/listen.sock
@@ -421,96 +421,96 @@ pm.max_requests = 500
 request_terminate_timeout = 30s
 chdir = /    
 EOF
-    if [ -f /etc/php5/fpm/pool.d/www.conf ]
-    then
-        mv /etc/php5/fpm/pool.d/www.conf /etc/php5/fpm/pool.d/www.conf.bak
-    fi
-    # Setting up Nginx mapping
-    cat > "/etc/nginx/sites-available/$1.conf" <<END
+	if [ -f /etc/php5/fpm/pool.d/www.conf ]
+	then
+		mv /etc/php5/fpm/pool.d/www.conf /etc/php5/fpm/pool.d/www.conf.bak
+	fi
+	# Setting up Nginx mapping
+	cat > "/etc/nginx/sites-available/$1.conf" <<END
 server {
-    server_name $1 www.$1;
-    root /var/www/$1/public_html;
-    access_log /var/www/$1/logs/access.log;
-    error_log /var/www/$1/logs/error.log;    
+	server_name $1 www.$1;
+	root /var/www/$1/public_html;
+	access_log /var/www/$1/logs/access.log;
+	error_log /var/www/$1/logs/error.log;    
 
-    index index.php;
-	
-    location / {
-        autoindex on;
-        try_files \$uri \$uri/ @fuel;
-    }
+	index index.php;
 
-    location @fuel {
-        rewrite ^(.*) /index.php?\$1 last;
-    }
+	location / {
+		autoindex on;
+		try_files \$uri \$uri/ @fuel;
+	}
 
-    location ~ ^(?<script>.+\.php)(?<path_info>.*)$ {
-        # Zero-day exploit defense.
-        # http://forum.nginx.org/read.php?2,88845,page=3
-        # Won't work properly (404 error) if the file is not stored on this server, which is entirely possible with php-fpm/php-fcgi.
-        # Comment the 'try_files' line out if you set up php-fpm/php-fcgi on another machine.  And then cross your fingers that you won't get hacked.
-    
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        include /etc/nginx/fastcgi_params;
+	location @fuel {
+		rewrite ^(.*) /index.php?\$1 last;
+	}
 
-        # Some default config
-        fastcgi_connect_timeout        60;
-        fastcgi_send_timeout          180;
-        fastcgi_read_timeout          180;
-        fastcgi_buffer_size          128k;
-        fastcgi_buffers            4 256k;
-        fastcgi_busy_buffers_size    256k;
-        fastcgi_temp_file_write_size 256k;
+	location ~ ^(?<script>.+\.php)(?<path_info>.*)$ {
+		# Zero-day exploit defense.
+		# http://forum.nginx.org/read.php?2,88845,page=3
+		# Won't work properly (404 error) if the file is not stored on this server, which is entirely possible with php-fpm/php-fcgi.
+		# Comment the 'try_files' line out if you set up php-fpm/php-fcgi on another machine.  And then cross your fingers that you won't get hacked.
 
-        fastcgi_intercept_errors    on;
-        fastcgi_ignore_client_abort off;
+		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+		include /etc/nginx/fastcgi_params;
 
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$script;
-        if (-f \$request_filename) {
-            fastcgi_pass unix:/var/www/$1/listen.sock;
-        }
-    }
+		# Some default config
+		fastcgi_connect_timeout        60;
+		fastcgi_send_timeout          180;
+		fastcgi_read_timeout          180;
+		fastcgi_buffer_size          128k;
+		fastcgi_buffers            4 256k;
+		fastcgi_busy_buffers_size    256k;
+		fastcgi_temp_file_write_size 256k;
 
-    location /favicon.ico {
-        log_not_found off;
-        access_log off;
-    }
+		fastcgi_intercept_errors    on;
+		fastcgi_ignore_client_abort off;
 
-    location /robots.txt {
-        allow all;
-        log_not_found off;
-        access_log off;
-    }
-    
-    location ~ /\. { 
-        deny all; 
-        access_log off; 
-        log_not_found off; 
-    }
+		fastcgi_index index.php;
+		fastcgi_param SCRIPT_FILENAME \$document_root\$script;
+		if (-f \$request_filename) {
+			fastcgi_pass unix:/var/www/$1/listen.sock;
+		}
+	}
 
-    # This matters if you use drush
-    location /backup {
-        deny all;
-    }
+	location /favicon.ico {
+		log_not_found off;
+		access_log off;
+	}
 
-    # Very rarely should these ever be accessed outside of your lan
-    location ~* \.(txt|log)$ {
-        allow 192.168.0.0/16;
-        deny all;
-    }
+	location /robots.txt {
+		allow all;
+		log_not_found off;
+		access_log off;
+	}
 
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
-        expires max;
-        add_header Cache-Control public;    
-        log_not_found off;
-    }
+	location ~ /\. { 
+		deny all; 
+		access_log off; 
+		log_not_found off; 
+	}
+
+	# This matters if you use drush
+	location /backup {
+		deny all;
+	}
+
+	# Very rarely should these ever be accessed outside of your lan
+	location ~* \.(txt|log)$ {
+		allow 192.168.0.0/16;
+		deny all;
+	}
+
+	location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+		expires max;
+		add_header Cache-Control public;    
+		log_not_found off;
+	}
 }
 
 END
-    ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
-    invoke-rc.d php5-fpm restart
-    invoke-rc.d nginx restart
+	ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
+	invoke-rc.d php5-fpm restart
+	invoke-rc.d nginx restart
 }
 
 function install_iptables {
@@ -595,43 +595,43 @@ END
 }
 
 function remove_unneeded {
-    # Some Debian have portmap installed. We don't need that.
-    check_remove /sbin/portmap portmap
+	# Some Debian have portmap installed. We don't need that.
+	check_remove /sbin/portmap portmap
 
-    # Remove rsyslogd, which allocates ~30MB privvmpages on an OpenVZ system,
-    # which might make some low-end VPS inoperatable. We will do this even
-    # before running apt-get update.
-    check_remove /usr/sbin/rsyslogd rsyslog
+	# Remove rsyslogd, which allocates ~30MB privvmpages on an OpenVZ system,
+	# which might make some low-end VPS inoperatable. We will do this even
+	# before running apt-get update.
+	check_remove /usr/sbin/rsyslogd rsyslog
 
-    # Other packages that seem to be pretty common in standard OpenVZ
-    # templates.
-    check_remove /usr/sbin/apache2 'apache2*'
-    check_remove /usr/sbin/named bind9
-    check_remove /usr/sbin/smbd 'samba*'
-    check_remove /usr/sbin/nscd nscd
+	# Other packages that seem to be pretty common in standard OpenVZ
+	# templates.
+	check_remove /usr/sbin/apache2 'apache2*'
+	check_remove /usr/sbin/named bind9
+	check_remove /usr/sbin/smbd 'samba*'
+	check_remove /usr/sbin/nscd nscd
 
-    # Need to stop sendmail as removing the package does not seem to stop it.
-    if [ -f /usr/lib/sm.bin/smtpd ]
-    then
-        invoke-rc.d sendmail stop
-        check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
-    fi
+	# Need to stop sendmail as removing the package does not seem to stop it.
+	if [ -f /usr/lib/sm.bin/smtpd ]
+	then
+		invoke-rc.d sendmail stop
+		check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
+	fi
     
-    check_install wget wget    
-    cat >> /etc/apt/sources.list <<END
+	check_install wget wget    
+	cat >> /etc/apt/sources.list <<END
 deb http://packages.dotdeb.org stable all
 END
-    wget http://www.dotdeb.org/dotdeb.gpg
-    cat dotdeb.gpg | sudo apt-key add -
-    rm dotdeb.gpg    
+	wget http://www.dotdeb.org/dotdeb.gpg
+	cat dotdeb.gpg | sudo apt-key add -
+	rm dotdeb.gpg    
     
 }
 
 function update_upgrade {
-    # Run through the apt-get update/upgrade first. This should be done before
-    # we try to install any package
-    apt-get -q -y update
-    apt-get -q -y upgrade
+	# Run through the apt-get update/upgrade first. This should be done before
+	# we try to install any package
+	apt-get -q -y update
+	apt-get -q -y upgrade
 }
 
 function update_timezone {
@@ -669,21 +669,21 @@ export PATH=/bin:/usr/bin:/sbin:/usr/sbin
 check_sanity
 case "$1" in
 mysql)
-    install_mysql
-    ;;
+	install_mysql
+	;;
 nginx)
-    install_nginx $2
-    ;;
+	install_nginx $2
+	;;
 php)
-    install_php
-    ;;
+	install_php
+	;;
 system)
 	install_dotdeb
 	update_timezone
 	remove_unneeded
 	update_upgrade
 	update-grub 0	
-    install_exim4
+	install_exim4
 	install_dash
 	install_vim
 	install_nano
@@ -695,8 +695,8 @@ system)
     check_install make g++
 	;;
 site)
-    install_site $2 $3
-    ;;
+	install_site $2 $3
+	;;
 secure)
 	secure $2 $3
 	;;
