@@ -189,11 +189,11 @@ function install_mysql {
     check_install mysqld mysql-server
     check_install mysql mysql-client
 
-    # Install a low-end copy of the my.cnf to disable InnoDB, and then delete
+    # Install a mid-end copy of the my.cnf to disable InnoDB, and then delete
     # all the related files.
     invoke-rc.d mysql stop
     rm -f /var/lib/mysql/ib*
-    cat > /etc/mysql/conf.d/lowendbox.cnf <<END
+    cat > /etc/mysql/conf.d/midendbox.cnf <<END
 [mysqld]
 default-storage-engine = MyISAM
 key_buffer = 32M
@@ -219,7 +219,7 @@ function install_nginx {
     check_install nginx nginx
     
     # Need to increase the bucket size for Debian 5.
-    cat > /etc/nginx/conf.d/lowendbox.conf <<END
+    cat > /etc/nginx/conf.d/midendbox.conf <<END
 server_names_hash_bucket_size 64;
 END
     if [ -f /etc/nginx/nginx.conf ]
@@ -682,6 +682,7 @@ system)
 	update_timezone
 	remove_unneeded
 	update_upgrade
+	update-grub 0	
     install_exim4
 	install_dash
 	install_vim
