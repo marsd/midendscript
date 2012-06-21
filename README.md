@@ -7,6 +7,11 @@ Modified script to run optimally on 1-2GB RAM VPS
 - Added `secure` to create a new ssh user, change ssh port and disable ssh root logins
 - Moved `install_iptables` into `secure`
 
+### nginx
+- v1.2.1+ 
+- Configured with gzip
+- Must have a site installed later, config does not assume nginx will definitely be used to serve PHP
+
 ### MySQL 
 - v5.5+ without InnoDB, 
 - Configured with query caching

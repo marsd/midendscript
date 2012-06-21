@@ -714,7 +714,7 @@ secure)
 	echo 'Available options (in recomended order):'
 	echo '  - system                 (remove unneeded, upgrade system, install base software)'
 	echo '  - mysql                  (install MySQL and set root password)'
-	echo '  - nginx                  (install nginx and create sample PHP vhosts)'
+	echo '  - nginx                  (install nginx and create default config)'
 	echo '  - php                    (install PHP5-FPM with APC, cURL, suhosin, etc...)'
 	echo '  - site      [domain.tld] (create nginx vhost and /var/www/$site/public)'
 	echo '  - secure	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
