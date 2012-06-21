@@ -20,21 +20,21 @@ Modified script to run optimally on 1-2GB RAM VPS
 - PECL extensions are added as additional inis in /etc/php/conf.d
 
 ### Install Site 
-- Creates a DOMAIN.conf in /etc/php5/fpm/pool.d/
-- Creates a DOMAIN.conf in /etc/nginx/sites-available/
+- Creates a `DOMAIN.conf` in `/etc/php5/fpm/pool.d/`
+- Creates a `DOMAIN.conf` in `/etc/nginx/sites-available/`
 - Attempts to fix image file script execution exploits
 - Attempts to rewrite /index.php? params (currently for FuelPHP, can be modified for other frameworks)		
 - Creates the following directories and files:
 	
-	/var/www/DOMAIN/
-	/var/www/DOMAIN/public_html
-		index.php (MySQL database, username and password are in comments)
-		pinfo.php (phpinfo)
-	/var/www/DOMAIN/logs
+    /var/www/DOMAIN/
+    /var/www/DOMAIN/public_html
+      index.php (MySQL database, username and password are in comments)
+      pinfo.php (phpinfo)
+    /var/www/DOMAIN/logs
 	
 	
 ## Usage:
-	$ wget --no-check-certificate https://raw.github.com/Xeoncross/lowendscript/master/setup-debian.sh
+	$ wget --no-check-certificate https://raw.github.com/marsd/midendscript/master/setup-debian.sh
 	$ chmod 744 setup-debian.sh
 	$ ./setup-debian.sh system
 	$ ./setup-debian.sh mysql
