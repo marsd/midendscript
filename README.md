@@ -10,7 +10,8 @@ Modified script to run optimally on 1-2GB RAM VPS
 ### nginx
 - v1.2.1+ 
 - Configured with gzip
-- Must have a site installed later, config does not assume nginx will definitely be used to serve PHP
+- Must have a site installed later as config does not include server params
+- Does not assume nginx will definitely be used to serve PHP files
 
 ### MySQL 
 - v5.5+ without InnoDB, 
