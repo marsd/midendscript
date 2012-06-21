@@ -11,12 +11,14 @@ Modified script to run optimally on 1-2GB RAM VPS
 ### MySQL 
 - v5.1+ W/O Innodb, 
 - configured for mid-end VPS with query caching
+
 ### PHP-FPM 
 - v5.3+ with APC installed and configured
 - Other packages installed:
 - php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear    
 - PECL packages: rar zip
 - PECL extensions are added as additional inis in /etc/php/conf.d
+
 ### Install Site 
 - Creates a DOMAIN.conf in /etc/php5/fpm/pool.d/
 - Creates a DOMAIN.conf in /etc/nginx/sites-available/
