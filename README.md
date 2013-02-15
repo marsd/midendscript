@@ -20,10 +20,10 @@ Modified script to run optimally on 1-2GB RAM VPS
 - Configured with query caching
 
 ### PHP-FPM 
-- v5.3+ with APC installed and configured
+- v5.4+ with APC installed and configured
 - Other packages installed:
 - `php5-cli` `php5-mysql` `php-apc` `php5-dev` `php5-mcrypt` `php5-imagick` `php5-common` `php5-suhosin` `php5-curl` `php5-intl` `php-gettext` `php-pear`
-- PECL packages: `rar` `zip`
+- PECL packages: `rar` `zip` `apc` `mongo`
 - PECL extensions are added as additional `.ini` in `/etc/php/conf.d`
 
 ### Install Site 
