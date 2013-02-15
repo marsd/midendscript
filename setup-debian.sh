@@ -143,11 +143,16 @@ function install_exim4 {
 }
 
 function install_dotdeb {
-	#echo "deb http://mirror.us.leaseweb.net/dotdeb/ stable all" >> /etc/apt/sources.list
-	#echo "deb-src http://mirror.us.leaseweb.net/dotdeb/ stable all" >> /etc/apt/sources.list
+	check_install wget wget    
+	
 	echo "deb http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
 	echo "deb-src http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
+	echo "deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen" >> /etc/apt/sources.list
+	echo "deb http://packages.dotdeb.org squeeze-php54 all" >> /etc/apt/sources.list
+	echo "deb-src http://packages.dotdeb.org squeeze-php54 all" >> /etc/apt/sources.list
+	apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
 	wget -q -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
+	apt-get update
 }
 
 function install_syslogd {
@@ -192,6 +197,10 @@ END
 	invoke-rc.d inetutils-syslogd start
 }
 
+function install_mongodb {
+	check_install mongodb20-10gen mongodb20-10gen
+}
+
 function install_mysql {
 	# Install the MySQL packages
 	check_install mysqld mysql-server
@@ -203,6 +212,12 @@ function install_mysql {
 	rm -f /var/lib/mysql/ib*
 	cat > /etc/mysql/conf.d/midendbox.cnf <<END
 [mysqld]
+init_connect = 'SET collation_connection = utf8_unicode_ci'
+init_connect = 'SET NAMES utf8'
+default-character-set = utf8
+character-set-server = utf8
+collation-server = utf8_unicode_ci
+skip-character-set-client-handshake 
 default-storage-engine = MyISAM
 key_buffer = 32M
 query_cache_size = 128M
@@ -213,12 +228,12 @@ END
 	# Generating a new password for the root user.
 	passwd=`get_password root@mysql`
 	mysqladmin password "$passwd"
-	cat > ~/.my.cnf <<END
+	cat > /var/www/.my.cnf <<END
 [client]
 user = root
 password = $passwd
 END
-	chmod 600 ~/.my.cnf
+	chmod 600 /var/www/.my.cnf
 }
 
 function install_nginx {
@@ -298,10 +313,12 @@ EOF
 }
 
 function install_php {   
-	check_install php5 php5 php5-cli php5-mysql php-apc php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear
+	check_install php5 php5 php5-cli php5-mysql php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear
 	check_install php5-fpm php5-fpm
-	pecl install rar
-	pecl install zip
+	printf "\n" | pecl install -o rar
+	printf "\n" | pecl install -o zip
+	printf "\n" | pecl install -o mongo
+	printf "\n" | pecl install -o apc
 
 	mkdir -p /var/www
 	chown www-data:www-data /var/www
@@ -347,7 +364,7 @@ suhosin.post.max_totalname_length = 8192
 suhosin.sql.bailout_on_error = Off
 END
 
-	cat > /etc/php5/conf.d/rar.ini <<END
+cat > /etc/php5/conf.d/rar.ini <<END
 ; configuration for php rar module
 extension=rar.so
 END
@@ -355,6 +372,11 @@ END
 cat > /etc/php5/conf.d/zip.ini <<END
 ; configuration for php zip module
 extension=zip.so
+END
+
+cat > /etc/php5/conf.d/mongo.ini <<END
+; configuration for php mongo module
+extension=mongo.so
 END
 
 	if [ -f /etc/php5/fpm/php.ini ]
@@ -377,7 +399,8 @@ function install_site {
 	fi
 
 	mkdir -p /var/www/$1/{public_html,logs}
-	chown root:root -R "/var/www/$1"
+	chown www-data:www-data -R "/var/www/$1"
+	chmod 775 /var/www/$1/public_html
 
 	cat > "/var/www/$1/public_html/index.php" <<END
 <?php
@@ -406,7 +429,7 @@ END
 	sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
 		"/var/www/$1/public_html/index.php"
 	mysqladmin create "$dbname"
-	echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
+	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
 		mysql
 		
 	# Setting up php5-fpm config
@@ -517,13 +540,14 @@ server {
 
 END
 	ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
+	rm /etc/nginx/sites-enabled/default
 	invoke-rc.d php5-fpm restart
 	invoke-rc.d nginx restart
 }
 
 function install_iptables {
 
-	check_install iptables
+	check_install iptables iptables
 
 	# Create startup rules
 	cat > /etc/iptables.up.rules <<END
@@ -545,6 +569,7 @@ function install_iptables {
 # Allows HTTP and HTTPS connections from anywhere (the normal ports for websites)
 -A INPUT -p tcp --dport 80 -j ACCEPT	
 -A INPUT -p tcp --dport 443 -j ACCEPT
+-A INPUT -p tcp --dport 3306 -j ACCEPT
 
 # UN-COMMENT THESE IF YOU USE INCOMING MAIL!
 
@@ -613,7 +638,16 @@ function remove_unneeded {
 
 	# Other packages that seem to be pretty common in standard OpenVZ
 	# templates.
+	invoke-rc.d apache2 stop	
 	check_remove /usr/sbin/apache2 'apache2*'
+	check_remove /usr/sbin/apache2.2-common apache2.2-common
+	check_remove /usr/sbin/apache2-utils apache2-utils 
+	check_remove /usr/sbin/apache2.2-bin apache2.2-bin
+	check_remove /usr/sbin/apache2-mpm-itk apache2-mpm-itk
+	check_remove /usr/sbin/apache2-mpm-prefork apache2-mpm-prefork
+	check_remove /usr/sbin/apache2-mpm-worker apache2-mpm-worker
+	check_remove /usr/sbin/apache2-mpm-event apache2-mpm-event
+
 	check_remove /usr/sbin/named bind9
 	check_remove /usr/sbin/smbd 'samba*'
 	check_remove /usr/sbin/nscd nscd
@@ -624,14 +658,6 @@ function remove_unneeded {
 		invoke-rc.d sendmail stop
 		check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
 	fi
-    
-	check_install wget wget    
-	cat >> /etc/apt/sources.list <<END
-deb http://packages.dotdeb.org stable all
-END
-	wget http://www.dotdeb.org/dotdeb.gpg
-	cat dotdeb.gpg | sudo apt-key add -
-	rm dotdeb.gpg    
     
 }
 
@@ -655,6 +681,10 @@ function secure {
 	install_iptables $1
 	
 	adduser $2
+
+	adduser $2 sudo
+
+	adduser $2 www-data
 	
     if [ -f /etc/ssh/sshd_config ]
     then
@@ -676,6 +706,9 @@ export PATH=/bin:/usr/bin:/sbin:/usr/sbin
 
 check_sanity
 case "$1" in
+mongodb)
+	install_mongodb
+	;;
 mysql)
 	install_mysql
 	;;
@@ -714,6 +747,7 @@ secure)
 	echo 'Available options (in recomended order):'
 	echo '  - system                 (remove unneeded, upgrade system, install base software)'
 	echo '  - mysql                  (install MySQL and set root password)'
+	echo '  - mongodb                (install mongodb)'
 	echo '  - nginx                  (install nginx and create default config)'
 	echo '  - php                    (install PHP5-FPM with APC, cURL, suhosin, etc...)'
 	echo '  - site      [domain.tld] (create nginx vhost and /var/www/$site/public)'
