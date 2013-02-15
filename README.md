@@ -13,6 +13,8 @@ Modified script to run optimally on 1-2GB RAM VPS
 - Must have a site installed later as config does not include server params
 - Does not assume nginx will definitely be used to serve PHP files
 
+### MongoDB (New)
+
 ### MySQL 
 - v5.5+ without InnoDB, 
 - Configured with query caching
@@ -47,6 +49,7 @@ Creates the following directories and files:
 	$ chmod 744 setup-debian.sh
 	$ ./setup-debian.sh system
 	$ ./setup-debian.sh mysql
+	$ ./setup-debian.sh mongodb
 	$ ./setup-debian.sh nginx
 	$ ./setup-debian.sh php
 	$ ./setup-debian.sh site <example.com> <MySQL username>
