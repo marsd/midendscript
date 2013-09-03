@@ -95,6 +95,14 @@ function install_nano {
 	check_install nano nano
 }
 
+function install_git {
+	check_install git git
+}
+
+function install_netcat {
+	check_install netcat netcat
+}
+
 function install_htop {
 	check_install htop htop
 }
@@ -105,6 +113,10 @@ function install_mc {
 
 function install_iotop {
 	check_install iotop iotop
+}
+
+function install_saidar {
+	check_install saidar saidar
 }
 
 function install_iftop {
@@ -131,6 +143,15 @@ function install_gplusplus {
 	check_install g++ g++
 }
 
+function install_curl {
+	check_install curl curl
+}
+
+function install_composer {
+	curl -sS https://getcomposer.org/installer | php -- --install-dir=/var/www
+	mv /var/www/composer.phar /usr/bin/composer
+}
+
 function install_exim4 {
 	check_install mail exim4
 	if [ -f /etc/exim4/update-exim4.conf.conf ]
@@ -143,13 +164,13 @@ function install_exim4 {
 }
 
 function install_dotdeb {
-	check_install wget wget    
-	
-	echo "deb http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
-	echo "deb-src http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
+	check_install wget wget
+
+	echo "deb http://packages.dotdeb.org wheezy all" >> /etc/apt/sources.list
+	echo "deb-src http://packages.dotdeb.org wheezy all" >> /etc/apt/sources.list
+	echo "deb http://packages.dotdeb.org wheezy-php55 all" >> /etc/apt/sources.list
+	echo "deb-src http://packages.dotdeb.org wheezy-php55 all" >> /etc/apt/sources.list
 	echo "deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen" >> /etc/apt/sources.list
-	echo "deb http://packages.dotdeb.org squeeze-php54 all" >> /etc/apt/sources.list
-	echo "deb-src http://packages.dotdeb.org squeeze-php54 all" >> /etc/apt/sources.list
 	apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
 	wget -q -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
 	apt-get update
@@ -201,6 +222,11 @@ function install_mongodb {
 	check_install mongodb20-10gen mongodb20-10gen
 }
 
+function install_memcached {
+	check_install memcached memcached php5-memcached
+	invoke-rc.d php5-fpm restart
+}
+
 function install_mysql {
 	# Install the MySQL packages
 	check_install mysqld mysql-server
@@ -212,12 +238,6 @@ function install_mysql {
 	rm -f /var/lib/mysql/ib*
 	cat > /etc/mysql/conf.d/midendbox.cnf <<END
 [mysqld]
-init_connect = 'SET collation_connection = utf8_unicode_ci'
-init_connect = 'SET NAMES utf8'
-default-character-set = utf8
-character-set-server = utf8
-collation-server = utf8_unicode_ci
-skip-character-set-client-handshake 
 default-storage-engine = MyISAM
 key_buffer = 32M
 query_cache_size = 128M
@@ -234,13 +254,14 @@ user = root
 password = $passwd
 END
 	chmod 600 /var/www/.my.cnf
+	cp /var/www/.my.cnf ~/.my.cnf
 }
 
 function install_nginx {
 	cpu=`cat /proc/cpuinfo | grep processor | wc -l`
-	
+
 	check_install nginx nginx
-    
+
     # Need to increase the bucket size for Debian 5.
 	cat > /etc/nginx/conf.d/midendbox.conf <<END
 server_names_hash_bucket_size 64;
@@ -272,7 +293,7 @@ http {
 	access_log /var/log/nginx/access.log;
 	error_log /var/log/nginx/error.log;
 
-	## General Options  
+	## General Options
 	charset                 utf-8;
 	default_type            application/octet-stream;
 	ignore_invalid_headers  on;
@@ -297,7 +318,7 @@ http {
 	gzip_vary            on;
 	gzip_disable "msie6";
 	gzip_proxied any;
-	gzip_comp_level 6;
+	gzip_comp_level 4;
 	gzip_buffers 16 8k;
 	gzip_http_version 1.1;
 	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
@@ -308,17 +329,14 @@ http {
 }
 
 EOF
-        
+
     invoke-rc.d nginx restart
 }
 
-function install_php {   
-	check_install php5 php5 php5-cli php5-mysql php5-dev php5-mcrypt php5-imagick php5-common php5-suhosin php5-curl php5-intl php-gettext php-pear
+function install_php {
+	check_install php5 php5 php5-cli php5-mysql php5-dev php5-mcrypt php5-imagick php5-common php5-curl php5-intl php-gettext php-pear
 	check_install php5-fpm php5-fpm
-	printf "\n" | pecl install -o rar
-	printf "\n" | pecl install -o zip
-	printf "\n" | pecl install -o mongo
-	printf "\n" | pecl install -o apc
+	pecl install mongo
 
 	mkdir -p /var/www
 	chown www-data:www-data /var/www
@@ -326,53 +344,6 @@ function install_php {
 	chown www-data:www-data /var/lib/www
 
 	update-rc.d php5-fpm defaults
-
-	mv /etc/php5/conf.d/apc.ini /etc/php5/conf.d/orig.apc.ini
-
-	cat > /etc/php5/conf.d/apc.ini <<END
-[APC]
-extension=apc.so
-apc.enabled=1
-apc.shm_segments=1
-apc.shm_size=64
-apc.ttl=7200
-apc.user_ttl=7200
-apc.num_files_hint=1024
-apc.mmap_file_mask=/tmp/apc.XXXXXX
-apc.max_file_size = 1M
-apc.post_max_size = 1000M
-apc.upload_max_filesize = 1000M
-apc.enable_cli=0
-apc.rfc1867=0
-apc.include_once_override = 0
-apc.canonicalize = 0
-apc.stat = 0
-END
-
-	mv /etc/php5/conf.d/suhosin.ini /etc/php5/conf.d/orig.suhosin.ini
-
-	cat > /etc/php5/conf.d/suhosin.ini <<END
-; configuration for php suhosin module
-extension=suhosin.so
-suhosin.executor.include.whitelist="phar"
-suhosin.request.max_vars = 2048
-suhosin.post.max_vars = 2048
-suhosin.request.max_array_index_length = 256
-suhosin.post.max_array_index_length = 256
-suhosin.request.max_totalname_length = 8192
-suhosin.post.max_totalname_length = 8192
-suhosin.sql.bailout_on_error = Off
-END
-
-cat > /etc/php5/conf.d/rar.ini <<END
-; configuration for php rar module
-extension=rar.so
-END
-
-cat > /etc/php5/conf.d/zip.ini <<END
-; configuration for php zip module
-extension=zip.so
-END
 
 cat > /etc/php5/conf.d/mongo.ini <<END
 ; configuration for php mongo module
@@ -386,9 +357,21 @@ END
 				/etc/php5/fpm/php.ini
 			sed -i \
 				"s/post_max_size = 8M/post_max_size = 200M/" \
-				/etc/php5/fpm/php.ini			
+				/etc/php5/fpm/php.ini
 	fi
-    
+
+
+cat > /etc/php5/conf.d/opcache.ini <<END
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=256
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=10000
+opcache.validate_timestamps=1
+opcache.revalidate_freq=5
+opcache.revalidate_path=1
+opcache.fast_shutdown=1
+END
     invoke-rc.d php5-fpm restart
 }
 
@@ -416,7 +399,7 @@ END
     cat > "/var/www/$1/public_html/pinfo.php" <<END
 <?php
   phpinfo();
-?>    
+?>
 END
 
 	# Setting up the MySQL database
@@ -431,7 +414,10 @@ END
 	mysqladmin create "$dbname"
 	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
 		mysql
-		
+
+	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`%\` IDENTIFIED BY '$passwd';" | \
+		mysql
+
 	# Setting up php5-fpm config
 	# http://www.howtoforge.com/php-fpm-nginx-security-in-shared-hosting-environments-debian-ubuntu
 	cat > "/etc/php5/fpm/pool.d/$1.conf" <<EOF
@@ -447,10 +433,10 @@ pm = dynamic
 pm.max_children = 35
 pm.start_servers = 4
 pm.min_spare_servers = 2
-pm.max_spare_servers = 10 
+pm.max_spare_servers = 10
 pm.max_requests = 500
 request_terminate_timeout = 30s
-chdir = /    
+chdir = /
 EOF
 	if [ -f /etc/php5/fpm/pool.d/www.conf ]
 	then
@@ -462,7 +448,7 @@ server {
 	server_name $1 www.$1;
 	root /var/www/$1/public_html;
 	access_log /var/www/$1/logs/access.log;
-	error_log /var/www/$1/logs/error.log;    
+	error_log /var/www/$1/logs/error.log;
 
 	index index.php;
 
@@ -514,10 +500,10 @@ server {
 		access_log off;
 	}
 
-	location ~ /\. { 
-		deny all; 
-		access_log off; 
-		log_not_found off; 
+	location ~ /\. {
+		deny all;
+		access_log off;
+		log_not_found off;
 	}
 
 	# This matters if you use drush
@@ -533,14 +519,13 @@ server {
 
 	location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
 		expires max;
-		add_header Cache-Control public;    
+		add_header Cache-Control public;
 		log_not_found off;
 	}
 }
 
 END
 	ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
-	rm /etc/nginx/sites-enabled/default
 	invoke-rc.d php5-fpm restart
 	invoke-rc.d nginx restart
 }
@@ -567,7 +552,7 @@ function install_iptables {
 -A OUTPUT -j ACCEPT
 
 # Allows HTTP and HTTPS connections from anywhere (the normal ports for websites)
--A INPUT -p tcp --dport 80 -j ACCEPT	
+-A INPUT -p tcp --dport 80 -j ACCEPT
 -A INPUT -p tcp --dport 443 -j ACCEPT
 -A INPUT -p tcp --dport 3306 -j ACCEPT
 
@@ -638,15 +623,17 @@ function remove_unneeded {
 
 	# Other packages that seem to be pretty common in standard OpenVZ
 	# templates.
-	invoke-rc.d apache2 stop	
+	invoke-rc.d apache2 stop
 	check_remove /usr/sbin/apache2 'apache2*'
 	check_remove /usr/sbin/apache2.2-common apache2.2-common
-	check_remove /usr/sbin/apache2-utils apache2-utils 
+	check_remove /usr/sbin/apache2-utils apache2-utils
 	check_remove /usr/sbin/apache2.2-bin apache2.2-bin
 	check_remove /usr/sbin/apache2-mpm-itk apache2-mpm-itk
 	check_remove /usr/sbin/apache2-mpm-prefork apache2-mpm-prefork
 	check_remove /usr/sbin/apache2-mpm-worker apache2-mpm-worker
 	check_remove /usr/sbin/apache2-mpm-event apache2-mpm-event
+
+	apt-get purge apache2 apache2-utils apache2.2-bin apache2-common
 
 	check_remove /usr/sbin/named bind9
 	check_remove /usr/sbin/smbd 'samba*'
@@ -658,7 +645,7 @@ function remove_unneeded {
 		invoke-rc.d sendmail stop
 		check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
 	fi
-    
+
 }
 
 function update_upgrade {
@@ -677,15 +664,15 @@ function secure {
 	then
 		die "Usage: `basename $0` secure [ssh-port-# username]"
 	fi
-		
+
 	install_iptables $1
-	
+
 	adduser $2
 
 	adduser $2 sudo
 
 	adduser $2 www-data
-	
+
     if [ -f /etc/ssh/sshd_config ]
     then
         sed -i \
@@ -694,7 +681,7 @@ function secure {
         sed -i \
             "s/PermitRootLogin yes/PermitRootLogin no/" \
             /etc/ssh/sshd_config
-			
+
         invoke-rc.d ssh restart
     fi
 }
@@ -706,6 +693,9 @@ export PATH=/bin:/usr/bin:/sbin:/usr/sbin
 
 check_sanity
 case "$1" in
+memcached)
+	install_memcached
+	;;
 mongodb)
 	install_mongodb
 	;;
@@ -717,17 +707,19 @@ nginx)
 	;;
 php)
 	install_php
+	install_composer
 	;;
 system)
 	install_dotdeb
 	update_timezone
 	remove_unneeded
 	update_upgrade
-	update-grub 0	
+	update-grub 0
 	install_exim4
 	install_dash
 	install_vim
 	install_nano
+	install_netcat
 	install_htop
 	install_mc
 	install_iotop
@@ -735,6 +727,9 @@ system)
 	install_syslogd
 	install_make
 	install_gplusplus
+	install_saidar
+	install_curl
+	install_git
 	;;
 site)
 	install_site $2 $3
@@ -747,13 +742,15 @@ secure)
 	echo 'Available options (in recomended order):'
 	echo '  - system                 (remove unneeded, upgrade system, install base software)'
 	echo '  - mysql                  (install MySQL and set root password)'
+	echo '  - memcached              (install memcached and php5-memcached)'
 	echo '  - mongodb                (install mongodb)'
 	echo '  - nginx                  (install nginx and create default config)'
-	echo '  - php                    (install PHP5-FPM with APC, cURL, suhosin, etc...)'
+	echo '  - php                    (install PHP5-FPM with cURL, composer, etc...)'
 	echo '  - site      [domain.tld] (create nginx vhost and /var/www/$site/public)'
 	echo '  - secure	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
 	echo '  '
 	;;
 esac
+
 
 
