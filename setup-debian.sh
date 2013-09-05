@@ -180,48 +180,6 @@ function install_dotdeb {
 	apt-get update
 }
 
-function install_syslogd {
-	# We just need a simple vanilla syslogd. Also there is no need to log to
-	# so many files (waste of fd). Just dump them into
-	# /var/log/(cron/mail/messages)
-	check_install /usr/sbin/syslogd inetutils-syslogd
-	invoke-rc.d inetutils-syslogd stop
-
-	for file in /var/log/*.log /var/log/mail.* /var/log/debug /var/log/syslog
-	do
-		[ -f "$file" ] && rm -f "$file"
-	done
-	for dir in fsck news
-	do
-		[ -d "/var/log/$dir" ] && rm -rf "/var/log/$dir"
-	done
-
-	cat > /etc/syslog.conf <<END
-*.*;mail.none;cron.none -/var/log/messages
-cron.*				  -/var/log/cron
-mail.*				  -/var/log/mail
-END
-
-	[ -d /etc/logrotate.d ] || mkdir -p /etc/logrotate.d
-	cat > /etc/logrotate.d/inetutils-syslogd <<END
-/var/log/cron
-/var/log/mail
-/var/log/messages {
-	rotate 4
-	weekly
-	missingok
-	notifempty
-	compress
-	sharedscripts
-	postrotate
-		/etc/init.d/inetutils-syslogd reload >/dev/null
-	endscript
-}
-END
-
-	invoke-rc.d inetutils-syslogd start
-}
-
 function install_mongodb {
 	check_install mongodb20-10gen mongodb20-10gen
 }
@@ -623,11 +581,6 @@ function remove_unneeded {
 	# Some Debian have portmap installed. We don't need that.
 	check_remove /sbin/portmap portmap
 
-	# Remove rsyslogd, which allocates ~30MB privvmpages on an OpenVZ system,
-	# which might make some low-end VPS inoperatable. We will do this even
-	# before running apt-get update.
-	check_remove /usr/sbin/rsyslogd rsyslog
-
 	# Other packages that seem to be pretty common in standard OpenVZ
 	# templates.
 	invoke-rc.d apache2 stop
@@ -743,7 +696,6 @@ system)
 	install_mc
 	install_iotop
 	install_iftop
-	install_syslogd
 	install_make
 	install_gplusplus
 	install_saidar
@@ -755,6 +707,9 @@ site)
 	;;
 secure)
 	secure $2 $3
+	;;
+user)
+	user $1
 	;;
 *)
 	echo 'Usage:' `basename $0` '[option] [argument]'
