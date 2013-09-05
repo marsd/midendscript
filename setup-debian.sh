@@ -152,6 +152,10 @@ function install_composer {
 	mv /var/www/composer.phar /usr/bin/composer
 }
 
+function install_snoopy {
+	check_install snoopy snoopy
+}
+
 function install_exim4 {
 	check_install mail exim4
 	if [ -f /etc/exim4/update-exim4.conf.conf ]
@@ -575,6 +579,9 @@ function install_iptables {
 -A INPUT -p tcp -m tcp --dport $1 -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --name DEFAULT --rsource -j DROP
 -A INPUT -p tcp -m state --state NEW --dport $1 -j ACCEPT
 
+#  Allows MUD connections at port 9000
+-A INPUT -p tcp --dport 9000 -j ACCEPT
+
 # Allow ping
 -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
 
@@ -662,7 +669,7 @@ function update_timezone {
 function secure {
 	if [ -z "$1" ] || [ -z "$2" ]
 	then
-		die "Usage: `basename $0` secure [ssh-port-# username]"
+		die "Usage: `basename $0` secure [ssh-port-number username]"
 	fi
 
 	install_iptables $1
@@ -684,6 +691,17 @@ function secure {
 
         invoke-rc.d ssh restart
     fi
+}
+
+function user {
+	if [ -z "$1" ]
+	then
+		die "Usage: `basename $0` secure [username]"
+	fi
+	adduser $1
+	adduser $1 sudo
+	adduser $1 www-data
+	
 }
 
 ########################################################################
@@ -715,6 +733,7 @@ system)
 	remove_unneeded
 	update_upgrade
 	update-grub 0
+	install_snoopy	
 	install_exim4
 	install_dash
 	install_vim
@@ -747,7 +766,8 @@ secure)
 	echo '  - nginx                  (install nginx and create default config)'
 	echo '  - php                    (install PHP5-FPM with cURL, composer, etc...)'
 	echo '  - site      [domain.tld] (create nginx vhost and /var/www/$site/public)'
-	echo '  - secure	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
+	echo '  - firewall	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
+	echo '  - user		[user] 		 (creates a new user)'
 	echo '  '
 	;;
 esac
