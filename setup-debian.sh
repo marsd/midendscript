@@ -395,8 +395,8 @@ function remove_site {
 	rm -f "/etc/nginx/sites-available/$1.conf"
 	rm -f "/etc/nginx/sites-enabled/$1.conf"
 	
-	invoke-rc.d php5-fpm restart
-	invoke-rc.d nginx restart
+	invoke-rc.d php5-fpm reload
+	invoke-rc.d nginx reload
 	
 }
 
@@ -568,8 +568,8 @@ END
 	mkdir "/var/www/$1/ssl"
 	openssl req -new -x509 -nodes -out "/var/www/$1/ssl/$1.crt" -keyout "/var/www/$1/ssl/$1.key" -subj "/C=US/ST=./L=./O=./CN=$1"	
 
-	invoke-rc.d php5-fpm restart
-	invoke-rc.d nginx restart
+	invoke-rc.d php5-fpm reload
+	invoke-rc.d nginx reload
 	
 	print_info "Creating the user $2"
 	# Add the user $user 
