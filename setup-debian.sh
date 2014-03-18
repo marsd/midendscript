@@ -378,16 +378,41 @@ END
     invoke-rc.d php5-fpm restart
 }
 
+function remove_site {
+	if [ -z "$1" ] || [ -z "$2" ]
+	then
+		die "Usage: `basename $0` delsite <hostname> <your name>"
+	fi
+	
+	deluser $2 www-users
+	deluser www-data $2 
+	deluser $2
+	
+	dbname=`echo $1 | tr . _`
+	echo "DROP DATABASE $dbname; DROP USER \`$2\`@\`localhost\`;" | mysql
+	
+	rm -rf "/var/www/$1"
+	rm -f "/etc/php5/fpm/pool.d/$1.conf"
+	rm -f "/etc/nginx/sites-available/$1.conf"
+	rm -f "/etc/nginx/sites-enabled/$1.conf"
+	
+	invoke-rc.d php5-fpm restart
+	invoke-rc.d nginx restart
+	
+}
+
 function install_site {
 	if [ -z "$1" ] || [ -z "$2" ]
 	then
 		die "Usage: `basename $0` site <hostname> <your name>"
 	fi
 
+	print_info "Creating public_html and logs folder"
 	mkdir -p /var/www/$1/{public_html,logs}	
-	chmod -R g+sx /var/www
+	chmod -R g+sx /var/www/$1
 	chmod -R 771 /var/www/$1
 
+	print_info "Creating database and user"
 	cat > "/var/www/$1/public_html/index.php" <<END
 <?php
 /*
@@ -407,7 +432,7 @@ END
 
 	# Setting up the MySQL database
 	dbname=`echo $1 | tr . _`
-	userid=`get_domain_name $1`
+	userid=`$2`
 	# MySQL userid cannot be more than 15 characters long
 	userid="${userid:0:15}"
 	passwd=`get_password "$userid@mysql"`
@@ -415,9 +440,11 @@ END
 	sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
 		"/var/www/$1/public_html/index.php"
 	mysqladmin create "$dbname"
-	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | \
-		mysql
+	
+	print_info "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';"
+	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | mysql
 		
+	print_info "Setting up php5-fpm and nginx config"
 	# Setting up php5-fpm config
 	# http://www.howtoforge.com/php-fpm-nginx-security-in-shared-hosting-environments-debian-ubuntu
 	cat > "/etc/php5/fpm/pool.d/$1.conf" <<EOF
@@ -445,7 +472,7 @@ EOF
 	# Setting up Nginx mapping
 	cat > "/etc/nginx/sites-available/$1.conf" <<END
 server {
-	listen 80
+	listen 80;
 	listen 443 ssl;
 	keepalive_timeout 70;
 	server_name $1 www.$1;
@@ -535,23 +562,27 @@ server {
 
 END
 	ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
+	
+	print_info "Generating SSL certificates"
+	# Generate the SSL certificates
+	mkdir "/var/www/$1/ssl"
+	openssl req -new -x509 -nodes -out "/var/www/$1/ssl/$1.crt" -keyout "/var/www/$1/ssl/$1.key" -subj "/C=US/ST=./L=./O=./CN=$1"	
+
 	invoke-rc.d php5-fpm restart
 	invoke-rc.d nginx restart
 	
+	print_info "Creating the user $2"
+	# Add the user $user 
+	adduser $2 --home "/var/www/$1" --no-create-home --gecos ""
+	
 	# Create the group $user
 	addgroup $2
-	usermod -a -G $2 www-data
-	
-	# Add the user $user 
-	adduser $2 --home "/var/www/$1" --no-create-home
-	
-	# Add to the appropriate groups
-	usermod -a -G $2 $2
-	usermod -a -G www-users $2
-	
-	# Generate the SSL certificates
-	mkdir "/var/www/$1/ssl"
-	openssl req -new -x509 -nodes -out "/var/www/$1/ssl/$1.crt" -keyout "/var/www/$1/ssl/$1.key"
+	# Add the user to his own group (just in case)
+	adduser $2 $2
+	# Add www-data user to the new user's group
+	adduser www-data $2
+	# Add user to the group www-users
+	adduser $2 www-users
 	
 	# Finally we chown the folder to the correct $user
 	chown $2:$2 -R "/var/www/$1"
@@ -753,6 +784,9 @@ system)
 site)
 	install_site $2 $3
 	;;
+delsite)
+	remove_site $2 $3
+	;;
 secure)
 	secure $2 $3
 	;;
@@ -764,7 +798,8 @@ secure)
 	echo '  - mongodb                (install mongodb)'
 	echo '  - nginx                  (install nginx and create default config)'
 	echo '  - php                    (install PHP5-FPM with APC, cURL, suhosin, etc...)'
-	echo '  - site      [domain.tld] (create nginx vhost and /var/www/$site/public)'
+	echo '  - site      [domain.tld, user] (create nginx vhost and /var/www/$site)'
+	echo '  - delsite   [domain.tld, user] (deletes nginx vhost and /var/www/$site)'
 	echo '  - secure	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
 	echo '  '
 	;;
