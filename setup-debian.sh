@@ -314,13 +314,23 @@ function install_php {
 	pecl install zip
 	pecl install mongo
 
+	# Create the www folder and set the correct inherited permissions
 	mkdir -p /var/www
 	chown -R www-data:www-data /var/www
 	chmod -R g+sx /var/www
-	setfacl -R -d -m u::rwx,g::r-x,o::--- /var/www
+	setfacl -R -d -m u::rwx,g::rwx,o::--- /var/www
 
 	mkdir -p /var/lib/www
 	chown www-data:www-data /var/lib/www
+
+	# Create the www-users group to add all the future users for ulimit file
+	addgroup www-users
+	cat >> /etc/security/limits.conf <<END
+
+@www-users	hard	nofile		102400
+@www-users	soft	nofile		102400
+# End modified www-users group ulimit
+END
 
 	update-rc.d php5-fpm defaults
 
@@ -374,9 +384,9 @@ function install_site {
 		die "Usage: `basename $0` site <hostname> <your name>"
 	fi
 
-	mkdir -p /var/www/$1/{public_html,logs}
-	chown www-data:www-data -R "/var/www/$1"
-	chmod 775 /var/www/$1/public_html
+	mkdir -p /var/www/$1/{public_html,logs}	
+	chmod -R g+sx /var/www
+	chmod -R 771 /var/www/$1
 
 	cat > "/var/www/$1/public_html/index.php" <<END
 <?php
@@ -518,8 +528,20 @@ END
 	ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
 	invoke-rc.d php5-fpm restart
 	invoke-rc.d nginx restart
-	adduser $2 --base-dir="/var/www/$1" --no-create-home
-
+	
+	# Create the group $user
+	addgroup $2
+	usermod -a -G $2 www-data
+	
+	# Add the user $user 
+	adduser $2 --home "/var/www/$1" --no-create-home
+	
+	# Add to the appropriate groups
+	usermod -a -G $2 $2
+	usermod -a -G www-users $2
+	
+	# Finally we chown the folder to the correct $user
+	chown $2:$2 -R "/var/www/$1"
 }
 
 function install_iptables {
