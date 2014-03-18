@@ -445,7 +445,16 @@ EOF
 	# Setting up Nginx mapping
 	cat > "/etc/nginx/sites-available/$1.conf" <<END
 server {
+	listen 80
+	listen 443 ssl;
+	keepalive_timeout 70;
 	server_name $1 www.$1;
+
+	ssl_certificate /var/www/$1/ssl/$1.crt;
+	ssl_certificate_key /var/www/$1/ssl/$1.key;
+	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+	ssl_ciphers HIGH:!aNULL:!MD5;	
+	
 	root /var/www/$1/public_html;
 	access_log /var/www/$1/logs/access.log;
 	error_log /var/www/$1/logs/error.log;    
@@ -540,8 +549,13 @@ END
 	usermod -a -G $2 $2
 	usermod -a -G www-users $2
 	
+	# Generate the SSL certificates
+	mkdir "/var/www/$1/ssl"
+	openssl req -new -x509 -nodes -out "/var/www/$1/ssl/$1.crt" -keyout "/var/www/$1/ssl/$1.key"
+	
 	# Finally we chown the folder to the correct $user
 	chown $2:$2 -R "/var/www/$1"
+
 }
 
 function install_iptables {
@@ -755,6 +769,4 @@ secure)
 	echo '  '
 	;;
 esac
-
-
 
