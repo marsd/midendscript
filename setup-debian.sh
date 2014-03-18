@@ -385,7 +385,6 @@ function remove_site {
 	fi
 	
 	deluser $2 www-users
-	deluser www-data $2 
 	deluser $2
 	
 	dbname=`echo $1 | tr . _`
@@ -411,6 +410,7 @@ function install_site {
 	mkdir -p /var/www/$1/{public_html,logs}	
 	chmod -R g+sx /var/www/$1
 	chmod -R 770 /var/www/$1
+	setfacl -R -m d:u:brandsisa:rwx /var/www/$1
 
 	print_info "Creating database and user"
 	cat > "/var/www/$1/public_html/index.php" <<END
@@ -581,16 +581,16 @@ END
 	# adduser $2 $2
 	usermod -a -G $2 $2
 
-	# Add www-data user to the new user's group
+	# Add www-data user to the new user's group (WE DONT NEED THIS?)
 	# adduser www-data $2
-	usermod -a -G $2 www-data
+	# usermod -a -G $2 www-data
 
 	# Add user to the group www-users
 	# adduser $2 www-users
 	usermod -a -G www-users $2
 	
 	# Finally we chown the folder to the correct $user
-	chown $2:$2 -R "/var/www/$1"
+	chown $2:www-data -R "/var/www/$1"
 
 }
 
