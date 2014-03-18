@@ -410,7 +410,7 @@ function install_site {
 	print_info "Creating public_html and logs folder"
 	mkdir -p /var/www/$1/{public_html,logs}	
 	chmod -R g+sx /var/www/$1
-	chmod -R 771 /var/www/$1
+	chmod -R 770 /var/www/$1
 
 	print_info "Creating database and user"
 	cat > "/var/www/$1/public_html/index.php" <<END
@@ -432,7 +432,7 @@ END
 
 	# Setting up the MySQL database
 	dbname=`echo $1 | tr . _`
-	userid=`$2`
+	userid=$2
 	# MySQL userid cannot be more than 15 characters long
 	userid="${userid:0:15}"
 	passwd=`get_password "$userid@mysql"`
@@ -578,11 +578,16 @@ END
 	# Create the group $user
 	addgroup $2
 	# Add the user to his own group (just in case)
-	adduser $2 $2
+	# adduser $2 $2
+	usermod -a -G $2 $2
+
 	# Add www-data user to the new user's group
-	adduser www-data $2
+	# adduser www-data $2
+	usermod -a -G $2 www-data
+
 	# Add user to the group www-users
-	adduser $2 www-users
+	# adduser $2 www-users
+	usermod -a -G www-users $2
 	
 	# Finally we chown the folder to the correct $user
 	chown $2:$2 -R "/var/www/$1"
