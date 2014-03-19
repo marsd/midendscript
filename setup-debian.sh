@@ -520,6 +520,10 @@ server {
 
 		fastcgi_index index.php;
 		fastcgi_param SCRIPT_FILENAME \$document_root\$script;
+                fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+                fastcgi_param DOCUMENT_ROOT \$realpath_root;
+
+		
 		if (-f \$request_filename) {
 			fastcgi_pass unix:/var/www/$1/listen.sock;
 		}
