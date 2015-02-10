@@ -149,10 +149,12 @@ function install_exim4 {
 function install_dotdeb {
 	check_install wget wget    
 	
-	echo "deb http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
-	echo "deb-src http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list
-	echo "deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen" >> /etc/apt/sources.list
+	echo "deb http://packages.dotdeb.org wheezy all" >> /etc/apt/sources.list
+	echo "deb-src http://packages.dotdeb.org wheezy all" >> /etc/apt/sources.list
+	echo "deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen" >> /etc/apt/sources.list	
+	add-apt-repository 'deb http://sgp1.mirrors.digitalocean.com/mariadb/repo/10.0/debian wheezy main'
 	apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
+	apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
 	wget -q -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
 	apt-get update
 }
@@ -205,8 +207,11 @@ function install_mongodb {
 
 function install_mysql {
 	# Install the MySQL packages
-	check_install mysqld mysql-server
-	check_install mysql mysql-client
+	check_install mariadependency python-software-properties
+	check_install mariadbd mariadb-server
+	check_install mariadb mariadb-client
+	# check_install mysqld mysql-server
+	# check_install mysql mysql-client
 
 	# Install a mid-end copy of the my.cnf to disable InnoDB, and then delete
 	# all the related files.
@@ -234,7 +239,7 @@ END
 function install_nginx {
 	cpu=`cat /proc/cpuinfo | grep processor | wc -l`
 	
-	check_install nginx nginx
+	check_install nginx-extras nginx-extras
     
     # Need to increase the bucket size for Debian 5.
 	cat > /etc/nginx/conf.d/midendbox.conf <<END
@@ -395,8 +400,8 @@ function remove_site {
 	rm -f "/etc/nginx/sites-available/$1.conf"
 	rm -f "/etc/nginx/sites-enabled/$1.conf"
 	
-	invoke-rc.d php5-fpm reload
-	invoke-rc.d nginx reload
+	invoke-rc.d php5-fpm restart
+	invoke-rc.d nginx restart
 	
 }
 
@@ -410,7 +415,9 @@ function install_site {
 	mkdir -p /var/www/$1/{public_html,logs}	
 	chmod -R g+sx /var/www/$1
 	chmod -R 770 /var/www/$1
-	setfacl -R -m d:u:brandsisa:rwx /var/www/$1
+	setfacl -R -m "group:www-data:rwx" -m "d:group:www-data:rwx" /var/www/$1
+	setfacl -R -m "user:$1:rwx" -m "d:user:$1:rwx" /var/www/$1
+	
 
 	print_info "Creating database and user"
 	cat > "/var/www/$1/public_html/index.php" <<END
@@ -443,6 +450,8 @@ END
 	
 	print_info "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';"
 	echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`localhost\` IDENTIFIED BY '$passwd';" | mysql
+        echo "USE $dbname; GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@\`%\` IDENTIFIED BY '$passwd' WITH GRANT OPTION; FLUSH PRIVILEGES;" | mysql
+
 		
 	print_info "Setting up php5-fpm and nginx config"
 	# Setting up php5-fpm config
@@ -520,10 +529,6 @@ server {
 
 		fastcgi_index index.php;
 		fastcgi_param SCRIPT_FILENAME \$document_root\$script;
-                fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-                fastcgi_param DOCUMENT_ROOT \$realpath_root;
-
-		
 		if (-f \$request_filename) {
 			fastcgi_pass unix:/var/www/$1/listen.sock;
 		}
@@ -722,7 +727,8 @@ function update_upgrade {
 }
 
 function update_timezone {
-	dpkg-reconfigure tzdata
+	echo 'Etc/UTC' > /etc/timezone
+  dpkg-reconfigure --frontend noninteractive tzdata
 }
 
 function secure {
@@ -750,6 +756,21 @@ function secure {
 			
         invoke-rc.d ssh restart
     fi
+}
+
+function sshuser {
+        if [ -z "$1" ]
+        then
+                die "Usage: `basename $0` sshuser [username]"
+        fi
+
+        adduser $1
+
+        adduser $1 sudo
+
+        adduser $1 www-data
+
+
 }
 
 ########################################################################
@@ -799,6 +820,9 @@ delsite)
 secure)
 	secure $2 $3
 	;;
+sshuser)
+	sshuser $2
+	;;
 *)
 	echo 'Usage:' `basename $0` '[option] [argument]'
 	echo 'Available options (in recomended order):'
@@ -810,7 +834,9 @@ secure)
 	echo '  - site      [domain.tld, user] (create nginx vhost and /var/www/$site)'
 	echo '  - delsite   [domain.tld, user] (deletes nginx vhost and /var/www/$site)'
 	echo '  - secure	[port, user] (setup basic firewall with HTTP open, disables ssh root login and creates a new user)'
+	echo '  - sshuser    [username] (create an ssh user and add him to the sudoers file)'
 	echo '  '
 	;;
 esac
+
 
